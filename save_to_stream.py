@@ -26,8 +26,9 @@ def readb64(base64_string):
 
 
 if __name__ == '__main__':
+    videopath = '1.mp4'
     # 获取摄像头对象
-    cap = cv2.VideoCapture('1.mp4')  # 0号摄像头，也可以1、2，lsusb查看
+    cap = cv2.VideoCapture(videopath)  # 0号摄像头，也可以1、2，lsusb查看
 
     # 使用函数 cap.get(propId) 来获得视频的一些参数信息
     fps = cap.get(cv2.CAP_PROP_FPS)  # 获得码率
@@ -39,6 +40,16 @@ if __name__ == '__main__':
     r = redis.Redis(host='127.0.0.1', port=6379)
     if r.exists('stream_4'):
         r.delete('stream_4')
+    if r.exists('num_loaded'):
+        r.delete('num_loaded')
+    if r.exists('num_processed'):
+        r.delete('num_processed')
+
+    r.set('load_status', 0)
+    r.set('fps', fps)
+    r.set('width', size[0])
+    r.set('height', size[1])
+
     if r.exists('stream_4'):
         pass
     else:
@@ -63,6 +74,9 @@ if __name__ == '__main__':
             tab = ''
             add_id = r.xadd('stream_4', {'jpeg': base64_data}, id=tab.join(str_list))
             id_count += 1
+            # Increment num to count loaded frame
+            r.incr('num_loaded')
+
             print('add_id:', add_id)
             clock1_2 = time.time()
             print('写入redis的时间：', clock1_2 - clock1_1)
@@ -70,5 +84,9 @@ if __name__ == '__main__':
         else:
             break
 
+    r.set('load_status', 1)
+
     cap.release()
+    print('num_loaded:', r.get("num_loaded"))
+    print('load_status', r.get("load_status"))
     print('Done!')

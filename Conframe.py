@@ -31,6 +31,7 @@ def readb64(base64_string):
 
 
 def get_frame(r):
+
     read_id = r.xreadgroup('group_1', 'consumer_1', {'stream_4': ">"}, block=0, count=1)
     base64_data_redis = read_id[0][1][0][1][b'jpeg']
     r.xack('stream_4', 'group_1', *[read_id[0][1][0][0]])
@@ -46,42 +47,47 @@ def draw_on_frame(data):
     return data
 
 
-def check_stream_5():
-    if w.exists('stream_5'):
-        print('stream_5 exists')
-        w.delete('stream_5')
-        print('stream_5 deleted')
-
-
 if __name__ == '__main__':
     r = redis.Redis(host='127.0.0.1', port=6379)
     w = redis.Redis(host='127.0.0.1', port=6380)
+
+    # acquire status
     while True:
-        if r.exists('stream_4'):
+        time.sleep(0.5)
+        load_status = r.get('load_status')
+        if int(re.findall(r"'(.+?)'", str(load_status))[0]) == 1:
+            while True:
+                num_loaded = r.get("num_loaded")
+                num_processed = r.get("num_processed")
+                if num_loaded == num_processed:
+                    print('fuck yeah')
+                    break
+                else:
+                    print('waiting the job done!')
+                    time.sleep(0.5)
+                    continue
             break
-        else:
-            time.sleep(0.5)
 
-    check_stream_5()
+    # concat video
+    fps = r.get('fps')
+    width = r.get('width')
+    height = r.get('height')
+    fps = int(re.findall(r"'(.+?).0", str(fps))[0])
+    width = int(re.findall(r"'(.+?)'", str(width))[0])
+    height = int(re.findall(r"'(.+?)'", str(height))[0])
+    print(fps)
 
-    while True:
-        # get b64 data
-        data, frame_id = get_frame(r)
-        print('processing : ', frame_id)
-        r.incr('num_processed')
+    # initiate video video writer
+    size = (width, height)
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    videowriter = cv2.VideoWriter('output.mp4', fourcc, fps, size)
 
-        # process
-        data = draw_on_frame(data)
-        # set back
-        base64_data = frame2base64(data)  # 读取视频帧，并给赋值
+    for i in range(int(re.findall(r"'(.+?)'", str(num_processed))[0])):
+        b64_data = w.hget('stream_5', i+1)
+        w.hdel('stream_5', i+1)
+        data = readb64(b64_data)
 
-        # send back to stream
-        w.hset("stream_5", frame_id, base64_data)
+        # save to disk
+        videowriter.write(data)
 
-        # cv2.imshow("data", data)  # 显示摄像头当前帧内容
-        # # Hit 'q' on the keyboard to quit!
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
-
-
-    # cv2.destroyAllWindows()
+    videowriter.release()

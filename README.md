@@ -9,3 +9,5 @@
 从redis中读取图像b64、处理后将b64送入stream
 5、ClearStream
 清除stream_4和stream_5
+6、Conframe
+将所有frame，根据load_status判断结果，进行帧汇总
