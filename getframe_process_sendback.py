@@ -32,10 +32,17 @@ def readb64(base64_string):
 
 def get_frame(r):
     read_id = r.xreadgroup('group_1', 'consumer_1', {'stream_4': ">"}, block=0, count=1)
+    print('read_id:', read_id)
     base64_data_redis = read_id[0][1][0][1][b'jpeg']
     r.xack('stream_4', 'group_1', *[read_id[0][1][0][0]])
     r.xdel('stream_4', *[read_id[0][1][0][0]])
     data = readb64(base64_data_redis)  # 把二进制文件解码，并复制给data
+    return data
+
+
+def draw_on_frame(data):
+    font = cv2.FONT_HERSHEY_DUPLEX
+    cv2.putText(data, 'License Expired!', (10, 60), font, 3, (255, 255, 255), 2)
     return data
 
 
@@ -54,22 +61,24 @@ def display_video():
 
 if __name__ == '__main__':
     r = redis.Redis(host='127.0.0.1', port=6379)
+    w = redis.Redis(host='127.0.0.1', port=6380)
     while True:
         if r.exists('stream_4'):
             break
         else:
             time.sleep(0.5)
+
     while True:
         # get b64 data
         data = get_frame(r)
 
         # process
+        data = draw_on_frame(data)
         cv2.imshow("data", data)  # 显示摄像头当前帧内容
         # Hit 'q' on the keyboard to quit!
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
         # send back to stream
-
 
     cv2.destroyAllWindows()

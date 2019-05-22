@@ -27,22 +27,27 @@ def readb64(base64_string):
 
 if __name__ == '__main__':
     # 获取摄像头对象
-    cap = cv2.VideoCapture(0)  # 0号摄像头，也可以1、2，lsusb查看
+    cap = cv2.VideoCapture('1.mp4')  # 0号摄像头，也可以1、2，lsusb查看
 
     # 使用函数 cap.get(propId) 来获得视频的一些参数信息
     fps = cap.get(cv2.CAP_PROP_FPS)  # 获得码率
     size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),  # 获得尺寸
             int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
+    id_count = 0
+
     r = redis.Redis(host='127.0.0.1', port=6379)
-    # if r.exists('stream_4'):
-    #     r.delete('stream_4')
+    if r.exists('stream_4'):
+        r.delete('stream_4')
     if r.exists('stream_4'):
         pass
     else:
-        r_temp = r.xadd('stream_4', {'jpeg': ''})
+        str_list = [str(id_count), '-1']
+        tab = ''
+        r_temp = r.xadd('stream_4', {'jpeg': ''}, id=tab.join(str_list))
         r.xgroup_create('stream_4', 'group_1', id=0)
         red = r.xreadgroup('group_1', 'consumer_1', {'stream_4': ">"}, block=0, count=1)
+        id_count += 1
         print('r_temp:', r_temp)
         r.xack('stream_4', 'group_1', *[r_temp])
         r.xdel('stream_4', *[r_temp])
@@ -53,12 +58,17 @@ if __name__ == '__main__':
             base64_data = frame2base64(frame)  # 读取视频帧，并给赋值
             # 写入redis
             clock1_1 = time.time()
-            add_id = r.xadd('stream_4', {'jpeg': base64_data})
+
+            str_list = [str(id_count), '-1']
+            tab = ''
+            add_id = r.xadd('stream_4', {'jpeg': base64_data}, id=tab.join(str_list))
+            id_count += 1
+            print('add_id:', add_id)
             clock1_2 = time.time()
             print('写入redis的时间：', clock1_2 - clock1_1)
 
         else:
-            continue
+            break
 
     cap.release()
-    cv2.destroyAllWindows()
+    print('Done!')
