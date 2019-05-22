@@ -66,22 +66,20 @@ if __name__ == '__main__':
 
     while True:
         # get b64 data
-        data, frame_id = get_frame(r)
-        print('processing : ', frame_id)
-        r.incr('num_processed')
+        try:
+            data, frame_id = get_frame(r)
+        except redis.exceptions.ResponseError:
+            check_stream_5()
+            continue
+        else:
+            print('processing : ', frame_id)
+            r.incr('num_processed')
 
-        # process
-        data = draw_on_frame(data)
-        # set back
-        base64_data = frame2base64(data)  # 读取视频帧，并给赋值
+            # process
+            data = draw_on_frame(data)
+            # set back
+            base64_data = frame2base64(data)  # 读取视频帧，并给赋值
 
-        # send back to stream
-        w.hset("stream_5", frame_id, base64_data)
+            # send back to stream
+            w.hset("stream_5", frame_id, base64_data)
 
-        # cv2.imshow("data", data)  # 显示摄像头当前帧内容
-        # # Hit 'q' on the keyboard to quit!
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
-
-
-    # cv2.destroyAllWindows()
