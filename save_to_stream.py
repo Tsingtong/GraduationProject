@@ -53,15 +53,22 @@ if __name__ == '__main__':
     if r.exists('stream_4'):
         pass
     else:
+        pipe = r.pipeline()
         str_list = [str(id_count), '-1']
         tab = ''
-        r_temp = r.xadd('stream_4', {'jpeg': ''}, id=tab.join(str_list))
-        r.xgroup_create('stream_4', 'group_1', id=0)
-        red = r.xreadgroup('group_1', 'consumer_1', {'stream_4': ">"}, block=0, count=1)
-        id_count += 1
-        print('r_temp:', r_temp)
-        r.xack('stream_4', 'group_1', *[r_temp])
-        r.xdel('stream_4', *[r_temp])
+        try:
+            pipe.watch('stream_4')
+            pipe.multi()
+            r_temp = pipe.xadd('stream_4', {'jpeg': ''}, id=tab.join(str_list))
+            pipe.xgroup_create('stream_4', 'group_1', id=0)
+            red = pipe.xreadgroup('group_1', 'consumer_1', {'stream_4': ">"}, block=0, count=1)
+            id_count += 1
+            pipe.xack('stream_4', 'group_1', *['0-1'])
+            pipe.xdel('stream_4', *['0-1'])
+            pipe.execute()
+        except redis.exceptions.WatchError:
+            # 发生WatchError时业务应该怎样处理，丢弃事务或者重试
+            pass
 
     while cap.isOpened():  # 若初始化摄像头或者打开视频文件成功，isOpened()返回值是True，则表明成功，否则返回值是False
         ret, frame = cap.read()
