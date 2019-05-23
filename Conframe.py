@@ -47,47 +47,64 @@ def draw_on_frame(data):
     return data
 
 
+def getTimeStamp():
+    t = int(round(time.time() * 1000))
+    print('Saved video name:', t, '.mp4')
+    return t
+
+
 if __name__ == '__main__':
     r = redis.Redis(host='127.0.0.1', port=6379)
     w = redis.Redis(host='127.0.0.1', port=6380)
 
-    # acquire status
     while True:
-        time.sleep(0.5)
-        load_status = r.get('load_status')
-        if int(re.findall(r"'(.+?)'", str(load_status))[0]) == 1:
-            while True:
-                num_loaded = r.get("num_loaded")
-                num_processed = r.get("num_processed")
-                if num_loaded == num_processed:
-                    print('fuck yeah')
-                    break
-                else:
-                    print('waiting the job done!')
-                    time.sleep(0.5)
-                    continue
-            break
+        # acquire status
+        while True:
+            time.sleep(0.5)
+            load_status = r.get('load_status')
+            # 判断视频是拆帧完了，既load_status == 1
+            if int(re.findall(r"'(.+?)'", str(load_status))[0]) == 1:
+                while True:
+                    num_loaded = r.get("num_loaded")
+                    num_processed = r.get("num_processed")
+                    # 判断视频是否处理完，既num_loaded == num_processed
+                    if num_loaded == num_processed:
+                        print('fuck yeah')
+                        break
+                    else:
+                        print('waiting the job done!')
+                        time.sleep(0.5)
+                        continue
+                break
 
-    # concat video
-    fps = r.get('fps')
-    width = r.get('width')
-    height = r.get('height')
-    fps = int(re.findall(r"'(.+?).0", str(fps))[0])
-    width = int(re.findall(r"'(.+?)'", str(width))[0])
-    height = int(re.findall(r"'(.+?)'", str(height))[0])
-    print(fps)
+        # concat video
+        fps = r.get('fps')
+        width = r.get('width')
+        height = r.get('height')
+        fps = int(re.findall(r"'(.+?).0", str(fps))[0])
+        width = int(re.findall(r"'(.+?)'", str(width))[0])
+        height = int(re.findall(r"'(.+?)'", str(height))[0])
+        print(fps)
 
-    # initiate video video writer
-    size = (width, height)
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    videowriter = cv2.VideoWriter('output.mp4', fourcc, fps, size)
+        # initiate video video writer
+        time_stamp = getTimeStamp()
+        size = (width, height)
+        fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+        videowriter = cv2.VideoWriter('./outputs/'+str(time_stamp)+'.mp4', fourcc, fps, size)
 
-    for i in range(int(re.findall(r"'(.+?)'", str(num_processed))[0])):
-        b64_data = w.hget('stream_5', i+1)
-        w.hdel('stream_5', i+1)
-        data = readb64(b64_data)
+        for i in range(int(re.findall(r"'(.+?)'", str(num_processed))[0])):
+            b64_data = w.hget('stream_5', i+1)
+            w.hdel('stream_5', i+1)
+            data = readb64(b64_data)
 
-        # save to disk
-        videowriter.write(data)
+            # save to disk
+            videowriter.write(data)
 
-    videowriter.release()
+        videowriter.release()
+        print('Video Saved!:', './outputs/'+str(time_stamp)+'.mp4')
+
+        # reset redis
+        r.set('load_status', 0)
+        r.set("num_loaded", 0)
+        r.set("num_processed", 0)
+        w.delete('stream_5')

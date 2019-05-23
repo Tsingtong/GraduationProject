@@ -26,7 +26,7 @@ def readb64(base64_string):
 
 
 if __name__ == '__main__':
-    videopath = '1.mp4'
+    videopath = 'videoplayback.mp4'
     # 获取摄像头对象
     cap = cv2.VideoCapture(videopath)  # 0号摄像头，也可以1、2，lsusb查看
 
