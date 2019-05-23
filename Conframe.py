@@ -54,8 +54,8 @@ def getTimeStamp():
 
 
 if __name__ == '__main__':
-    r = redis.Redis(host='127.0.0.1', port=6379)
-    w = redis.Redis(host='127.0.0.1', port=6380)
+    r = redis.Redis(host='192.168.1.149', port=6379)
+    w = redis.Redis(host='192.168.1.149', port=6380)
 
     while True:
         # acquire status

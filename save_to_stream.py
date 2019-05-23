@@ -26,7 +26,7 @@ def readb64(base64_string):
 
 
 if __name__ == '__main__':
-    videopath = 'videoplayback.mp4'
+    videopath = '2.mp4'
     # 获取摄像头对象
     cap = cv2.VideoCapture(videopath)  # 0号摄像头，也可以1、2，lsusb查看
 
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     id_count = 0
 
-    r = redis.Redis(host='127.0.0.1', port=6379)
+    r = redis.Redis(host='192.168.1.149', port=6379)
     if r.exists('stream_4'):
         r.delete('stream_4')
     if r.exists('num_loaded'):
